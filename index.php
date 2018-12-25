@@ -12,6 +12,7 @@
     <script type="text/javascript">
         $(document).ready(function () {
             $("#lightSlider").lightSlider();
+            window.submitForm("form")
         });
     </script>
 </head>
