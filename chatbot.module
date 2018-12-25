@@ -1,0 +1,159 @@
+<?php
+
+function chatbot_menu() {
+
+    $items = [];
+
+    $items['chat_process'] = array(
+        'title' => 'Welcome to Atlas',
+        'page callback' => 'chatbot_process_callback',
+        'access callback' => true,
+        'file' => 'parsedown.inc',
+    );
+
+    $items['admin/chatbot'] = [
+        'title'            => 'Manage Dialogflow',
+        'description'      => 'Access token',
+        'position'         => 'right',
+        'weight'           => 100,
+        'access arguments' => ['administer site configuration']
+    ];
+    $items['admin/chatbot/acessstoken'] = array(
+        'title' => 'Add/edit token',
+        'description' => 'Add/edit chatbot access key',
+        'page callback' => 'drupal_get_form',
+        'access arguments' => array('access content'),
+        'page arguments'=>array('drupalform_add_accesskey'),
+        'file'             => 'chatbot.admin.inc',
+        'type' => MENU_NORMAL_ITEM,
+    );
+    $items['set_session'] = array(
+        'title' => 'Welcome to Atlas',
+        'page callback' => 'chatbot_visibility',
+        'access callback' => true,
+        'file'             => 'chatbot.admin.inc',
+    );
+    return $items;
+    
+}
+
+function chatbot_process_callback(){
+
+    if(isset($_POST['submit']))
+    {
+        if($_POST['submit']==true){
+        // create curl resource
+      $ch = curl_init();
+         $userquery = $_POST['message'];
+         $query = curl_escape($ch,$_POST['message']);
+      $Ch_query = db_select('chatbot_data', 'n')
+        ->fields('n')
+        ->execute();
+         $num = $Ch_query->fetchAll();
+        $accesstoken = isset($num[0]->access_token) ? $num[0]->access_token : '';
+        $sessionid = curl_escape($ch,$_POST['sessionid']);
+        if($accesstoken!=''){
+        curl_setopt($ch, CURLOPT_URL,
+            "https://api.api.ai/v1/query?v=20150910&query=".$query."&lang=en&sessionId=".$sessionid);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json',
+            'Authorization: Bearer '.trim($accesstoken)));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $output = curl_exec($ch);
+        $dec = json_decode($output);
+   
+
+        $messages = isset($dec->result->fulfillment->messages) ? $dec->result->fulfillment->messages : array();
+        $action = isset($dec->result->action) ? $dec->result->action : array();
+        $intentid = isset($dec->result->metadata->intentId) ? $dec->result->metadata->intentId : array();
+        $intentname = isset($dec->result->metadata->intentName) ? $dec->result->metadata->intentName : array();
+        $isEndOfConversation = isset($dec->result->metadata->endConversation) ? $dec->result->metadata->endConversation : array();
+        $speech = '';
+        for($idx = 0; $idx < count($messages); $idx++){
+            $obj = $messages[$idx];
+            if($obj->type=='0'){
+                $speech = $obj->speech;
+            }
+        }
+
+        $Parsedown = new Parsedown();
+        $transformed= $Parsedown->text($speech);
+        $response = new \stdClass();
+        $response -> speech = $transformed;
+        $response -> messages = $messages;
+        $response -> isEndOfConversation = $isEndOfConversation;
+         drupal_json_output(array('speech' => $transformed, 'messages' => $messages, 'isEndOfConversation' => $isEndOfConversation));
+     //   echo json_encode($response);
+        // close curl resource to free up system resources
+        curl_close($ch);
+        
+        }
+    }
+  }
+}
+/**
+ * Implements hook_block_view().
+ */
+function chatbot_block_info() {
+ $blocks['chatbot_block'] = array(
+    'info' => t('Chatbot')
+  );
+
+  return $blocks;
+ 
+}
+
+function chatbot_block_view($delta = '') {
+     $block = array();
+     
+  switch ($delta) {
+    case 'chatbot_block':
+      $block['subject'] = t('Chatbot');
+      $block['content'] = chatbot_dialogflow();
+      break;
+  }
+  return $block;
+}
+function chatbot_dialogflow(){
+    
+    $data='<div class="chatbox-container">';
+    $sessionID = uniqid('', true);
+    if(isset($_SESSION['chatbot_visible'])){
+    if($_SESSION['chatbot_visible'] == 1){
+    $data.= '<div class="chatbox-holder">
+  <div class="chatbox">
+    <div class="chatbox-top">
+
+      <div class="chat-partner-name">
+        <span class="status online"></span>
+        <a target="_blank" href="#">Welcome to Atlas</a>
+      </div>
+      <div class="chatbox-icons">
+        <a href="javascript:void(0);"><i class="fa fa-minus"></i></a>
+        <a href="javascript:void(0);"><i class="fa fa-close"></i></a>       
+      </div>      
+    </div>
+    
+    <div class="chat-messages" id="chat-messages">
+   
+    </div>
+     <form id = "chatbot-form">
+    <div class="chat-input-holder">
+      <input class="chat-input" id="message" placeholder="Write something and press Enter..."></input>
+      <input type="submit"  value="Send" class="message-send" />
+    </div>
+     </form>
+  </div>
+  
+
+</div>';
+
+    }
+    }
+    $data.='<span style="display: none;" id="sessionId">
+      
+'. $sessionID.'
+    
+</span></div>';
+return $data;
+}

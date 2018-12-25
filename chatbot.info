@@ -1,0 +1,6 @@
+name = Chatbot
+description = Chatbot module allows user to query on Atlas
+core = 7.x
+
+stylesheets[all][] = assets/css/chatbot.css
+scripts[] = assets/js/chatbot.js

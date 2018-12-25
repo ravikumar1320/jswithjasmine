@@ -1,0 +1,39 @@
+<?php
+/*
+ * Database schema for Chatbot
+ */
+function chatbot_schema(){
+		$schema['chatbot_data'] = array(
+			'description' => 'Base table for Dialogflow',
+			'fields' => array(
+				'id' => array(
+					'description' => 'The primary identifier for domains',
+					'type' => 'serial',
+					'not null' => TRUE,
+					'unsigned' => TRUE,
+				),
+				'access_token' => array(
+					'description' => 'Access token',
+					'type' => 'text',
+					'size' => 'big',
+					'not null' => TRUE,
+				),
+				'updated' => array(
+					'description' => 'Time a token is updated',
+					'type' => 'varchar',
+                                        'length' => '255',
+					'not null' => TRUE,
+				),
+			),
+			'primary key' => array('id'),
+		);
+
+		return $schema;
+	}
+
+/*
+ * Uninstall the database tables on uninstallation of this module
+ */
+function chatbot_uninstall(){
+    drupal_uninstall_schema('chatbot_data');
+}
